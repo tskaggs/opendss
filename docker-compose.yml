@@ -1,0 +1,21 @@
+# OpenDSS — backend API only. Frontend runs on the host (e.g. pnpm dev) and should use:
+#   NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+#
+#   docker compose up --build
+#   docker compose down
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    # Optional: copy backend/.env.example to backend/.env and uncomment:
+    # env_file:
+    #   - ./backend/.env
+    environment:
+      # Production deployments: set ENVIRONMENT=production and CORS_ORIGINS to your site origin(s).
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001}

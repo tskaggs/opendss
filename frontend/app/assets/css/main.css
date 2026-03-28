@@ -1,0 +1,6 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+.leaflet-container {
+  font-family: inherit;
+}
