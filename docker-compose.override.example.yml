@@ -1,0 +1,11 @@
+# Optional: copy to `docker-compose.override.yml` (gitignored) to publish the API on host port
+# 8001 as well. Use this when a local `uvicorn` on the host already owns 127.0.0.1:8000 — IPv4
+# traffic to :8000 will hit Python, not Docker; curl http://127.0.0.1:8001/health hits the container.
+#
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#   docker compose up -d backend
+#
+services:
+  backend:
+    ports:
+      - "8001:8000"

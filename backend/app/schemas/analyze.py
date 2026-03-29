@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     lat: float = Field(..., ge=-90, le=90)
     lng: float = Field(..., ge=-180, le=180)
 
@@ -71,6 +73,35 @@ class AgronomyData(BaseModel):
     spray: SprayInfo
 
 
+PhaseBucket = Literal["new", "waxing", "full", "waning"]
+ZodiacElement = Literal["Fire", "Earth", "Air", "Water"]
+CropCategory = Literal["Root", "Leaf", "Fruit", "Flower"]
+
+
+class MoonAlmanac(BaseModel):
+    phase_name: str
+    phase_bucket: PhaseBucket
+    zodiac_sign: str
+    zodiac_element: ZodiacElement
+    lunar_cycle_progress: float = Field(..., ge=0.0, le=1.0)
+    illumination: float = Field(..., ge=0.0, le=1.0)
+
+
+class PhenologyAlmanac(BaseModel):
+    mouse_ear_oak_likely: bool
+    dandelion_spring_likely: bool
+    gdd_base10_cumulative_ytd: float | None = None
+
+
+class TraditionalAlmanac(BaseModel):
+    moon: MoonAlmanac
+    recommended_crop_category: CropCategory
+    recommendation_badge_label: str
+    phenology: PhenologyAlmanac
+    modern_traditional_alignment: Literal["aligned", "caution"]
+    wise_council_tip: str | None = None
+
+
 class AnalyzeResponse(BaseModel):
     location: Location
     weather: WeatherData
@@ -78,3 +109,4 @@ class AnalyzeResponse(BaseModel):
     soil_temperature: SoilTemperatureData
     soil_properties: SoilProperties
     agronomy: AgronomyData
+    almanac: TraditionalAlmanac

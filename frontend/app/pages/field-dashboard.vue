@@ -205,6 +205,7 @@ onBeforeUnmount(() => {
             />
           </div>
           <MetricsGrid :data="result" />
+          <AlmanacCard v-if="result" :analyze="result" />
           <UCard>
             <template #header>
               <span class="font-medium">Agronomic signals</span>

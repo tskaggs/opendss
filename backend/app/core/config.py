@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # slowapi limit for POST /analyze (abuse / upstream cost protection)
     rate_limit_analyze: str = "60/minute"
 
+    # When True, rate limiting uses X-Forwarded-For (first hop). Enable only behind a
+    # trusted reverse proxy that sets this header; otherwise clients can spoof IPs.
+    trust_forwarded_for: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

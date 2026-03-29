@@ -63,6 +63,34 @@ export interface AgronomyData {
   spray: SprayInfo
 }
 
+export type PhaseBucket = 'new' | 'waxing' | 'full' | 'waning'
+export type ZodiacElement = 'Fire' | 'Earth' | 'Air' | 'Water'
+export type CropCategory = 'Root' | 'Leaf' | 'Fruit' | 'Flower'
+
+export interface MoonAlmanac {
+  phase_name: string
+  phase_bucket: PhaseBucket
+  zodiac_sign: string
+  zodiac_element: ZodiacElement
+  lunar_cycle_progress: number
+  illumination: number
+}
+
+export interface PhenologyAlmanac {
+  mouse_ear_oak_likely: boolean
+  dandelion_spring_likely: boolean
+  gdd_base10_cumulative_ytd: number | null
+}
+
+export interface TraditionalAlmanac {
+  moon: MoonAlmanac
+  recommended_crop_category: CropCategory
+  recommendation_badge_label: string
+  phenology: PhenologyAlmanac
+  modern_traditional_alignment: 'aligned' | 'caution'
+  wise_council_tip: string | null
+}
+
 export interface AnalyzeResponse {
   location: AnalyzeLocation
   weather: WeatherData
@@ -70,4 +98,6 @@ export interface AnalyzeResponse {
   soil_temperature: SoilTemperatureData
   soil_properties: SoilProperties
   agronomy: AgronomyData
+  /** Present when the backend exposes the Traditional Almanac (OpenDSS analyze v2). */
+  almanac?: TraditionalAlmanac
 }
