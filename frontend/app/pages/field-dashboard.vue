@@ -1,43 +1,57 @@
 <script setup lang="ts">
 import type { AnalyzeResponse } from '~/types/analyze'
+import { isValidLatLng, parseLatLngQuery } from '~/utils/coordinates'
 
 definePageMeta({
   layout: 'default'
 })
 
+const DEFAULT_LAT = 40.7128
+const DEFAULT_LNG = -74.006
+
 const { analyzeField } = useAnalyze()
 
-const lat = ref(40.7128)
-const lng = ref(-74.006)
-const query = ref(`${lat.value}, ${lng.value}`)
+const lat = ref(DEFAULT_LAT)
+const lng = ref(DEFAULT_LNG)
+const query = ref(`${DEFAULT_LAT}, ${DEFAULT_LNG}`)
 
 const loading = ref(false)
 const errorMsg = ref<string | null>(null)
-const result = ref<AnalyzeResponse | null>(null)
+/** Large JSON payload: shallow ref avoids deep reactivity cost. */
+const result = shallowRef<AnalyzeResponse | null>(null)
 
-function applyQuery() {
-  const parts = query.value.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean)
-  if (parts.length >= 2) {
-    const la = Number(parts[0])
-    const ln = Number(parts[1])
-    if (!Number.isNaN(la) && !Number.isNaN(ln)) {
-      lat.value = la
-      lng.value = ln
-    }
-  }
+const sidebarOpen = useState('sidebar-open', () => true)
+
+function syncQueryFromCoords() {
+  query.value = `${lat.value.toFixed(5)}, ${lng.value.toFixed(5)}`
+}
+
+function applyQueryToCoords(): boolean {
+  const parsed = parseLatLngQuery(query.value)
+  if (!parsed) return false
+  lat.value = parsed.lat
+  lng.value = parsed.lng
+  return true
 }
 
 function onCoords(coords: { lat: number; lng: number }) {
+  if (!isValidLatLng(coords.lat, coords.lng)) return
   lat.value = coords.lat
   lng.value = coords.lng
-  query.value = `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+  syncQueryFromCoords()
 }
 
 async function runAnalyze() {
+  if (!applyQueryToCoords()) {
+    errorMsg.value =
+      'Enter a valid latitude and longitude (e.g. 40.71, -74.00). Latitude must be between -90 and 90, longitude between -180 and 180.'
+    result.value = null
+    return
+  }
+
   loading.value = true
   errorMsg.value = null
   try {
-    applyQuery()
     result.value = await analyzeField(lat.value, lng.value)
   } catch (e: unknown) {
     if (import.meta.dev) {
@@ -60,23 +74,35 @@ async function runAnalyze() {
       <div
         class="mx-auto flex max-w-[1600px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
       >
-        <div class="flex flex-1 flex-wrap items-center gap-2">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <UButton
+            icon="i-lucide-panel-left"
+            color="neutral"
+            variant="ghost"
+            square
+            class="shrink-0"
+            aria-label="Toggle sidebar"
+            @click="sidebarOpen = !sidebarOpen"
+          />
           <UInput
             v-model="query"
             icon="i-lucide-search"
-            class="min-w-[220px] flex-1"
+            class="min-w-0 flex-1 sm:min-w-[220px]"
             placeholder="lat, lng (e.g. 40.71, -74.00)"
+            autocomplete="off"
             @keyup.enter="runAnalyze"
           />
-          <UButton color="primary" :loading="loading" @click="runAnalyze">
+          <UButton
+            color="primary"
+            :loading="loading"
+            :disabled="loading"
+            @click="runAnalyze"
+          >
             Analyze field
           </UButton>
         </div>
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-end">
+        <div class="flex shrink-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-end">
           <MeasurementPreferences />
-          <div class="text-muted shrink-0 text-sm tabular-nums lg:text-right">
-            Selected: {{ lat.toFixed(5) }}, {{ lng.toFixed(5) }}
-          </div>
         </div>
       </div>
       <UAlert
