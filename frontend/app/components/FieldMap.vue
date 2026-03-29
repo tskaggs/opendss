@@ -44,7 +44,7 @@ onMounted(() => {
 watch(
   () => [props.lat, props.lng],
   ([la, ln]) => {
-    if (map && marker) {
+    if (map && marker && la !== undefined && ln !== undefined) {
       marker.setLatLng([la, ln])
       map.setView([la, ln], map.getZoom())
     }
@@ -61,7 +61,9 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex h-full min-h-[280px] flex-col gap-2">
     <p class="text-muted text-sm">
-      Click the map or drag the pin to set your field location. Boundary tools can plug in here later.
+      Click the map or drag the pin to set your field location. Metrics update after a short pause, or use
+      <strong class="text-default font-medium">Analyze field</strong>
+      to refresh immediately. Boundary tools can plug in here later.
     </p>
     <div
       ref="mapEl"
