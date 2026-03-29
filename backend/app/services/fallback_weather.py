@@ -9,6 +9,22 @@ from datetime import date, timedelta
 from app.services.nasa_power import PowerBundle
 
 
+def synthetic_gdd_ytd(lat: float, lng: float, *, base_c: float = 10.0) -> float:
+    """Approximate YTD GDD (base ``base_c``) when POWER data are unavailable."""
+    h = hashlib.sha256(f"{lat:.4f},{lng:.4f}".encode()).digest()
+    seed = int.from_bytes(h[:4], "big") / 2**32
+    today = date.today()
+    start = date(today.year, 1, 1)
+    total = 0.0
+    d = start
+    while d <= today:
+        doy = d.timetuple().tm_yday
+        base = 8.0 + 12.0 * math.sin(2 * math.pi * (doy - 40) / 365.0) + 4.0 * seed
+        total += max(0.0, base - base_c)
+        d += timedelta(days=1)
+    return round(total, 1)
+
+
 def synthetic_power_bundle(lat: float, lng: float) -> PowerBundle:
     h = hashlib.sha256(f"{lat:.4f},{lng:.4f}".encode()).digest()
     seed = int.from_bytes(h[:4], "big") / 2**32

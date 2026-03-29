@@ -13,3 +13,6 @@ frontend/.nuxt/
 **/.env
 **/.env.*
 !**/.env.example
+
+# Local Compose overrides (optional second port, etc.)
+docker-compose.override.yml

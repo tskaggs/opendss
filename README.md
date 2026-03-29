@@ -75,6 +75,34 @@ docker compose up --build
 
 Use the same `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000` when the frontend runs on your machine and the API is published on port 8000.
 
+**Docker image looks stale?** Compose may reuse cached layers. After changing `backend/` code or `requirements.txt`, run:
+
+```bash
+docker compose build --no-cache backend && docker compose up -d backend
+```
+
+Confirm the running container has the almanac-enabled schema: `GET /health` should return `"analyze_includes_almanac": true`. Then `POST /analyze` JSON should include an `almanac` object.
+
+**`/health` missing `health_schema` / `analyze_includes_almanac`?** You are not reaching the Docker container.
+
+On macOS it is common to run **`uvicorn` on the host** and **Docker** at the same time. `lsof` may show **two** listeners, for example:
+
+- **`Python`** on **`127.0.0.1:8000`** — local FastAPI (IPv4 only).
+- **`com.docker`** on **`*:8000`** — published container port.
+
+**`curl http://127.0.0.1:8000`** uses **IPv4** to the loopback address, so traffic goes to **Python**, not Docker. That is why you still see an old `/health` body even after rebuilding the image.
+
+**Fix (pick one):**
+
+1. **Stop the host API** so Docker owns `:8000` for IPv4: find the PID with `lsof -nP -iTCP:8000 -sTCP:LISTEN`, then stop that terminal or `kill <PID>` (only the `Python` / `uvicorn` process, not Docker). Then `curl -s http://127.0.0.1:8000/health` should show `health_schema` and `analyze_includes_almanac`.
+
+2. **Keep host uvicorn and use another port for Docker:** copy [`docker-compose.override.example.yml`](docker-compose.override.example.yml) to `docker-compose.override.yml` (gitignored), run `docker compose up -d backend`, then call **`http://127.0.0.1:8001`** for the container API and set `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8001` in `frontend/.env`.
+
+3. Recreate after code changes:  
+   `docker compose down && docker compose build --no-cache backend && docker compose up -d backend`
+
+4. Confirm the container: `docker ps --filter name=opendss-backend-api`
+
 ## Frontend (Nuxt)
 
 ```bash

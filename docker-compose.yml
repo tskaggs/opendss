@@ -3,9 +3,19 @@
 #
 #   docker compose up --build
 #   docker compose down
+#
+# If the API looks stale (e.g. missing POST /analyze → almanac), force a rebuild:
+#   docker compose build --no-cache backend && docker compose up -d backend
+# Verify: curl -s http://127.0.0.1:8000/health | jq .
+# If /health lacks `health_schema: "almanac-v1"`, host uvicorn may own 127.0.0.1:8000 — see README
+# and docker-compose.override.example.yml (publish on 8001).
 
 services:
   backend:
+    image: opendss-backend:local
+    container_name: opendss-backend-api
+    # Never pull a remote tag with this name; always use the image from `build:` above.
+    pull_policy: build
     build:
       context: ./backend
       dockerfile: Dockerfile

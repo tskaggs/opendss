@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.core.config import get_settings
+from app.core.http import create_async_client
 from app.core.middleware import SecurityHeadersMiddleware
 from app.limiter import limiter
 from app.routers import analyze, health
@@ -24,12 +25,20 @@ openapi_url = "/openapi.json" if not settings.is_production else None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.is_production and not settings.cors_origins_list:
+        raise RuntimeError(
+            "CORS_ORIGINS must list at least one browser origin when ENVIRONMENT=production"
+        )
+    app.state.http_client = create_async_client()
     logger.info(
         "OpenDSS API starting (environment=%s, cors_origins=%s)",
         settings.environment,
         len(settings.cors_origins_list),
     )
-    yield
+    try:
+        yield
+    finally:
+        await app.state.http_client.aclose()
 
 
 app = FastAPI(

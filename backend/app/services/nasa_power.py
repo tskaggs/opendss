@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 import httpx
@@ -127,6 +127,61 @@ async def fetch_power_bundle(lat: float, lng: float, client: httpx.AsyncClient) 
         soil_temp_series_7d=soil_temp_series_7d,
         soil_temp_c=float(soil_now),
     )
+
+
+async def fetch_ytd_gdd_base10(
+    lat: float, lng: float, client: httpx.AsyncClient, *, base_c: float = 10.0
+) -> float | None:
+    """Cumulative growing degree days (base ``base_c`` °C) from Jan 1 through today.
+
+    Uses NASA POWER daily mean air temperature (T2M) as a coarse stand-in for
+    (Tmax+Tmin)/2; suitable for phenology heuristics, not regulatory GDD.
+    """
+    today = datetime.now(timezone.utc).date()
+    start = date(today.year, 1, 1)
+    start_s = start.strftime("%Y%m%d")
+    end_s = today.strftime("%Y%m%d")
+
+    r = await client.get(
+        POWER_DAILY,
+        params={
+            "parameters": "T2M",
+            "community": "AG",
+            "longitude": lng,
+            "latitude": lat,
+            "start": start_s,
+            "end": end_s,
+            "format": "JSON",
+        },
+        timeout=60.0,
+    )
+    r.raise_for_status()
+    payload = r.json()
+    param_block = payload.get("properties", {}).get("parameter", {})
+    block = param_block.get("T2M", {})
+
+    t2m: dict[str, float] = {}
+    for k, v in block.items():
+        if _is_number(v):
+            kk = k.split("T", 1)[0] if "T" in k else k
+            t2m[kk] = float(v)
+
+    dates_sorted: list[str] = []
+    d = start
+    while d <= today:
+        dates_sorted.append(d.strftime("%Y%m%d"))
+        d += timedelta(days=1)
+
+    total = 0.0
+    for dk in dates_sorted:
+        air = t2m.get(dk)
+        if air is None:
+            continue
+        c = _to_celsius(air)
+        if c is None:
+            continue
+        total += max(0.0, c - base_c)
+    return round(total, 1) if dates_sorted else None
 
 
 async def _sum_next_6h_precip_mm(lat: float, lng: float, client: httpx.AsyncClient) -> float:

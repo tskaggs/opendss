@@ -15,7 +15,8 @@ RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin appuser
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && python -c "from skyfield.api import load; load('de421.bsp')"
 
 COPY --chown=appuser:appuser app ./app
 

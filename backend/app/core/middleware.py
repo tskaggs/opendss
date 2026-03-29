@@ -22,4 +22,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        # JSON API — no scripts or embeds expected from this origin
+        response.headers.setdefault("Content-Security-Policy", "default-src 'none'")
         return response
