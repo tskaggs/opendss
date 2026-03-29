@@ -31,6 +31,7 @@ function applyQueryToCoords(): boolean {
   if (!parsed) return false
   lat.value = parsed.lat
   lng.value = parsed.lng
+  syncQueryFromCoords()
   return true
 }
 
