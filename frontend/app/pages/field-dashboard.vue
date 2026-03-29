@@ -80,6 +80,7 @@ async function runAnalyzeCore() {
 }
 
 async function runAnalyze() {
+  clearPendingAutoAnalyzeTimer()
   skipAutoAnalyze.value = true
   try {
     if (!applyQueryToCoords()) {
@@ -98,17 +99,25 @@ async function runAnalyze() {
 
 let autoAnalyzeTimer: ReturnType<typeof setTimeout> | null = null
 
+function clearPendingAutoAnalyzeTimer() {
+  if (autoAnalyzeTimer) {
+    clearTimeout(autoAnalyzeTimer)
+    autoAnalyzeTimer = null
+  }
+}
+
 watch([lat, lng], () => {
   if (skipAutoAnalyze.value || !isValidLatLng(lat.value, lng.value)) return
-  if (autoAnalyzeTimer) clearTimeout(autoAnalyzeTimer)
+  clearPendingAutoAnalyzeTimer()
   autoAnalyzeTimer = setTimeout(() => {
     autoAnalyzeTimer = null
+    if (skipAutoAnalyze.value) return
     void runAnalyzeCore()
   }, AUTO_ANALYZE_DEBOUNCE_MS)
 })
 
 onBeforeUnmount(() => {
-  if (autoAnalyzeTimer) clearTimeout(autoAnalyzeTimer)
+  clearPendingAutoAnalyzeTimer()
 })
 </script>
 
