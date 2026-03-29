@@ -6,6 +6,10 @@ definePageMeta({
   layout: 'default'
 })
 
+/** Degrees — if current pin differs from last analysis by more than this, metrics are stale. */
+const COORD_EPSILON = 1e-4
+const AUTO_ANALYZE_DEBOUNCE_MS = 600
+
 const DEFAULT_LAT = 40.7128
 const DEFAULT_LNG = -74.006
 
@@ -20,7 +24,23 @@ const errorMsg = ref<string | null>(null)
 /** Large JSON payload: shallow ref avoids deep reactivity cost. */
 const result = shallowRef<AnalyzeResponse | null>(null)
 
+/** Suppress debounced auto-analyze when coordinates change from manual Analyze (search/button). */
+const skipAutoAnalyze = ref(false)
+
 const sidebarOpen = useState('sidebar-open', () => true)
+
+const analysisStale = computed(() => {
+  const r = result.value
+  if (!r) return false
+  return (
+    Math.abs(lat.value - r.location.lat) > COORD_EPSILON ||
+    Math.abs(lng.value - r.location.lng) > COORD_EPSILON
+  )
+})
+
+function formatAnalyzedLocation(loc: { lat: number; lng: number }) {
+  return `${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`
+}
 
 function syncQueryFromCoords() {
   query.value = `${lat.value.toFixed(5)}, ${lng.value.toFixed(5)}`
@@ -42,14 +62,7 @@ function onCoords(coords: { lat: number; lng: number }) {
   syncQueryFromCoords()
 }
 
-async function runAnalyze() {
-  if (!applyQueryToCoords()) {
-    errorMsg.value =
-      'Enter a valid latitude and longitude (e.g. 40.71, -74.00). Latitude must be between -90 and 90, longitude between -180 and 180.'
-    result.value = null
-    return
-  }
-
+async function runAnalyzeCore() {
   loading.value = true
   errorMsg.value = null
   try {
@@ -65,6 +78,38 @@ async function runAnalyze() {
     loading.value = false
   }
 }
+
+async function runAnalyze() {
+  skipAutoAnalyze.value = true
+  try {
+    if (!applyQueryToCoords()) {
+      errorMsg.value =
+        'Enter a valid latitude and longitude (e.g. 40.71, -74.00). Latitude must be between -90 and 90, longitude between -180 and 180.'
+      result.value = null
+      return
+    }
+    await runAnalyzeCore()
+  } finally {
+    nextTick(() => {
+      skipAutoAnalyze.value = false
+    })
+  }
+}
+
+let autoAnalyzeTimer: ReturnType<typeof setTimeout> | null = null
+
+watch([lat, lng], () => {
+  if (skipAutoAnalyze.value || !isValidLatLng(lat.value, lng.value)) return
+  if (autoAnalyzeTimer) clearTimeout(autoAnalyzeTimer)
+  autoAnalyzeTimer = setTimeout(() => {
+    autoAnalyzeTimer = null
+    void runAnalyzeCore()
+  }, AUTO_ANALYZE_DEBOUNCE_MS)
+})
+
+onBeforeUnmount(() => {
+  if (autoAnalyzeTimer) clearTimeout(autoAnalyzeTimer)
+})
 </script>
 
 <template>
@@ -135,6 +180,21 @@ async function runAnalyze() {
         </section>
 
         <section class="flex flex-col gap-4 lg:col-span-1">
+          <div v-if="result" class="space-y-2">
+            <p class="text-muted text-sm">
+              Analyzed:
+              <span class="text-default font-medium tabular-nums">{{
+                formatAnalyzedLocation(result.location)
+              }}</span>
+            </p>
+            <UAlert
+              v-if="analysisStale"
+              color="warning"
+              variant="subtle"
+              title="Map location changed"
+              description="Click Analyze field to refresh metrics for the current pin."
+            />
+          </div>
           <MetricsGrid :data="result" />
           <UCard>
             <template #header>
